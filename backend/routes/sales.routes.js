@@ -1,0 +1,10 @@
+const router = require('express').Router();
+const auth = require('../middleware/auth');
+const { requireRole } = require('../middleware/roles');
+const ctrl = require('../controllers/sales.controller');
+router.post('/', auth, ctrl.create);
+router.get('/', auth, requireRole('admin', 'manager'), ctrl.list);
+router.get('/receipt/:receipt_number', auth, ctrl.getByReceipt);
+router.get('/:id', auth, ctrl.getById);
+router.post('/:id/void', auth, requireRole('admin', 'manager'), ctrl.voidSale);
+module.exports = router;

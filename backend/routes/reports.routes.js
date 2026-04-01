@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const auth = require('../middleware/auth');
+const { requireRole } = require('../middleware/roles');
+const ctrl = require('../controllers/reports.controller');
+router.get('/summary', auth, requireRole('admin', 'manager'), ctrl.summary);
+router.get('/sales-by-day', auth, requireRole('admin', 'manager'), ctrl.salesByDay);
+router.get('/top-products', auth, requireRole('admin', 'manager'), ctrl.topProducts);
+router.get('/sales-by-category', auth, requireRole('admin', 'manager'), ctrl.salesByCategory);
+router.get('/cashier-performance', auth, requireRole('admin', 'manager'), ctrl.cashierPerformance);
+router.get('/inventory-value', auth, requireRole('admin', 'manager'), ctrl.inventoryValue);
+module.exports = router;

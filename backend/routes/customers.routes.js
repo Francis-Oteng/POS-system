@@ -1,0 +1,10 @@
+const router = require('express').Router();
+const auth = require('../middleware/auth');
+const ctrl = require('../controllers/customers.controller');
+router.get('/', auth, ctrl.list);
+router.get('/:id/purchases', auth, ctrl.getPurchases);
+router.get('/:id', auth, ctrl.getById);
+router.post('/', auth, ctrl.create);
+router.put('/:id', auth, ctrl.update);
+router.post('/:id/redeem-points', auth, ctrl.redeemPoints);
+module.exports = router;
