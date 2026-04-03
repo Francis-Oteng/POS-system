@@ -1,12 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, ShoppingCart, Package, Warehouse, Users, ClipboardList, BarChart3, UserCog } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, Package, Warehouse, Users, ClipboardList, BarChart3, UserCog, Receipt } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin','manager','cashier'] },
   { to: '/pos', icon: ShoppingCart, label: 'Point of Sale', roles: ['admin','manager','cashier'] },
+  { to: '/transactions', icon: Receipt, label: 'Transactions', roles: ['admin','manager'] },
   { to: '/products', icon: Package, label: 'Products', roles: ['admin','manager'] },
   { to: '/inventory', icon: Warehouse, label: 'Inventory', roles: ['admin','manager'] },
   { to: '/customers', icon: Users, label: 'Customers', roles: ['admin','manager','cashier'] },

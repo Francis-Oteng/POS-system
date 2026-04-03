@@ -19,7 +19,7 @@ exports.create = async (req, res, next) => {
     const { customer_id, items, discount_type, discount_value = 0, payment_method, amount_paid, payment_reference, notes } = req.body;
 
     if (!items || !items.length) return res.status(400).json({ message: 'At least one item required' });
-    if (!['cash', 'mobile_money', 'card'].includes(payment_method)) return res.status(400).json({ message: 'Valid payment method required' });
+    if (!['cash', 'mobile_money', 'card', 'paystack'].includes(payment_method)) return res.status(400).json({ message: 'Valid payment method required' });
 
     let subtotal = 0, tax_amount_total = 0;
     const lineItems = [];
@@ -102,7 +102,7 @@ exports.create = async (req, res, next) => {
 
 exports.list = async (req, res, next) => {
   try {
-    const { from, to, cashier_id, page = 1, limit = 20, search } = req.query;
+    const { from, to, cashier_id, payment_method, payment_status, page = 1, limit = 20, search } = req.query;
     const filter = {};
     if (from || to) {
       filter.createdAt = {};
@@ -110,7 +110,13 @@ exports.list = async (req, res, next) => {
       if (to) { const d = new Date(to); d.setHours(23,59,59,999); filter.createdAt.$lte = d; }
     }
     if (cashier_id) filter.cashier_id = cashier_id;
-    if (search) filter.receipt_number = { $regex: search, $options: 'i' };
+    if (payment_method) filter.payment_method = payment_method;
+    if (payment_status) filter.payment_status = payment_status;
+    if (search) {
+      filter.$or = [
+        { receipt_number: { $regex: search, $options: 'i' } }
+      ];
+    }
 
     const total = await Sale.countDocuments(filter);
     const data = await Sale.find(filter)
