@@ -115,8 +115,9 @@ exports.list = async (req, res, next) => {
     if (payment_method && VALID_PAYMENT_METHODS.includes(payment_method)) filter.payment_method = payment_method;
     if (payment_status && VALID_STATUSES.includes(payment_status)) filter.payment_status = payment_status;
     if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { receipt_number: { $regex: search, $options: 'i' } }
+        { receipt_number: { $regex: escapedSearch, $options: 'i' } }
       ];
     }
 

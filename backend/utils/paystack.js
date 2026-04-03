@@ -14,7 +14,7 @@ function paystackClient() {
 /**
  * Initialize a Paystack transaction.
  * @param {string} email - Customer email
- * @param {number} amount - Amount in the smallest currency unit (e.g. kobo for NGN, pesewas for GHS)
+ * @param {number} amount - Amount in the MAIN currency unit (e.g. NGN, GHS) — converted to kobo/pesewas internally
  * @param {string} reference - Unique transaction reference
  * @param {object} metadata - Optional extra data
  */

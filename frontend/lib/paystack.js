@@ -23,7 +23,7 @@ function loadPaystackScript() {
  * @param {object} options
  * @param {string} options.key  - Paystack public key
  * @param {string} options.email
- * @param {number} options.amount - Amount in the MAIN currency unit (e.g. GHS, NGN)
+ * @param {number} options.amount - Amount in the MAIN currency unit (e.g. GHS 50.00, NGN 5000.00) — converted to smallest unit (pesewas/kobo) internally
  * @param {string} options.reference
  * @param {function} options.onSuccess - Called with transaction object on success
  * @param {function} options.onClose   - Called when popup is closed without payment

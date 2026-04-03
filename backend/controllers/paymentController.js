@@ -1,5 +1,6 @@
 const { initializeTransaction, verifyTransaction } = require('../utils/paystack');
 const Sale = require('../models/Sale');
+const { randomUUID } = require('crypto');
 
 // Validate that a Paystack reference only contains safe characters to prevent NoSQL injection
 function sanitizeReference(ref) {
@@ -18,7 +19,7 @@ exports.initialize = async (req, res, next) => {
     const { email, amount, sale_ref } = req.body;
     if (!email || !amount) return res.status(400).json({ message: 'email and amount are required' });
 
-    const reference = sale_ref || `POS-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const reference = sale_ref || `POS-${randomUUID().replace(/-/g, '').slice(0, 16).toUpperCase()}`;
 
     const result = await initializeTransaction({
       email,
