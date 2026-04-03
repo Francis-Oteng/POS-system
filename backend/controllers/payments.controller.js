@@ -66,12 +66,12 @@ exports.verifyPaystack = async (req, res, next) => {
 
     if (data.status === 'success') {
       const updated = await Sale.findOneAndUpdate(
-        { paystack_reference: reference },
+        { paystack_reference: reference, payment_status: { $ne: 'completed' } },
         { payment_status: 'completed' },
         { new: true }
       )
       if (!updated) {
-        return res.status(404).json({ message: 'No sale found for this reference' })
+        return res.status(404).json({ message: 'No pending sale found for this reference' })
       }
     }
 
@@ -98,10 +98,13 @@ exports.handleWebhook = async (req, res, next) => {
       // Sanitize reference before using in query
       const ref = data && data.reference
       if (ref && /^[\w-]+$/.test(ref)) {
-        await Sale.findOneAndUpdate(
-          { paystack_reference: ref },
+        const updated = await Sale.findOneAndUpdate(
+          { paystack_reference: ref, payment_status: { $ne: 'completed' } },
           { payment_status: 'completed' }
         )
+        // If no sale was found (already completed or unknown ref), still return 200
+        // to prevent Paystack from retrying unnecessarily
+        void updated
       }
     }
 

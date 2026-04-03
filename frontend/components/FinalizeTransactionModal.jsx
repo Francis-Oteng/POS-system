@@ -69,7 +69,6 @@ function PaystackButton({ transaction, onSuccess }) {
 }
 
 export default function FinalizeTransactionModal({ transaction, onClose, onFinalized }) {
-  const [step, setStep] = useState('confirm')   // confirm | selectMethod | paystack | cash
   const [payMethod, setPayMethod] = useState(transaction.paymentMethod || 'paystack')
 
   useEffect(() => {

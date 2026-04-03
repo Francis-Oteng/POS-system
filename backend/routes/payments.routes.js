@@ -13,10 +13,18 @@ const paymentLimiter = rateLimit({
   message: { message: 'Too many payment requests, please try again later.' },
 })
 
+// Separate limiter for webhooks – allow more requests from Paystack servers
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 // All routes require authentication except the webhook
 router.post('/initialize',       paymentLimiter, auth, ctrl.initializePaystack)
 router.post('/verify',           paymentLimiter, auth, ctrl.verifyPaystack)
-router.post('/webhook',          ctrl.handleWebhook)   // No auth – called by Paystack
+router.post('/webhook',          webhookLimiter, ctrl.handleWebhook)   // No auth – called by Paystack
 router.get('/status/:reference', paymentLimiter, auth, ctrl.checkStatus)
 
 module.exports = router
