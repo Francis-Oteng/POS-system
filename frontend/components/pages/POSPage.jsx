@@ -77,7 +77,7 @@ function CheckoutModal({ onClose, onComplete }) {
     if (!publicKey) { toast.error('Paystack is not configured. Please add NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY to your environment.'); return }
     setLoading(true)
     try {
-      const reference = `POS-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+      const reference = `POS-${crypto.randomUUID().replace(/-/g, '').slice(0, 16).toUpperCase()}`
       await openPaystackPopup({
         key: publicKey,
         email: paystackEmail,
