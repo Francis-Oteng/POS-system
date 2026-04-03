@@ -23,9 +23,9 @@ const saleSchema = new mongoose.Schema({
   total_amount:   { type: Number, default: 0 },
   amount_paid:    { type: Number, default: 0 },
   change_due:     { type: Number, default: 0 },
-  payment_method: { type: String, enum: ['cash', 'mobile_money', 'card'], required: true },
+  payment_method: { type: String, enum: ['cash', 'mobile_money', 'card', 'paystack'], required: true },
   payment_reference: { type: String, default: null },
-  payment_status: { type: String, enum: ['completed', 'refunded', 'void'], default: 'completed' },
+  payment_status: { type: String, enum: ['pending', 'completed', 'refunded', 'void'], default: 'completed' },
   notes:          { type: String, default: '' }
 }, { timestamps: true });
 

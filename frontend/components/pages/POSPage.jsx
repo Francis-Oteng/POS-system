@@ -70,8 +70,8 @@ function CheckoutModal({ onClose, onComplete }) {
           <h2 className="text-lg font-bold">Checkout</h2>
           <button onClick={onClose}><X size={20} className="text-gray-400" /></button>
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          {['cash', 'mobile_money', 'card'].map(m => (
+        <div className="grid grid-cols-2 gap-2">
+          {['cash', 'mobile_money', 'card', 'paystack'].map(m => (
             <button key={m} onClick={() => setPaymentMethod(m)}
               className={`py-2 rounded-lg text-sm font-medium border-2 transition-colors ${paymentMethod === m ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
               {m === 'mobile_money' ? 'Mobile' : m.charAt(0).toUpperCase() + m.slice(1)}
