@@ -103,6 +103,8 @@ exports.create = async (req, res, next) => {
 exports.list = async (req, res, next) => {
   try {
     const { from, to, cashier_id, payment_method, payment_status, page = 1, limit = 20, search } = req.query;
+    const VALID_PAYMENT_METHODS = ['cash', 'mobile_money', 'card', 'paystack'];
+    const VALID_STATUSES = ['completed', 'refunded', 'void'];
     const filter = {};
     if (from || to) {
       filter.createdAt = {};
@@ -110,8 +112,8 @@ exports.list = async (req, res, next) => {
       if (to) { const d = new Date(to); d.setHours(23,59,59,999); filter.createdAt.$lte = d; }
     }
     if (cashier_id) filter.cashier_id = cashier_id;
-    if (payment_method) filter.payment_method = payment_method;
-    if (payment_status) filter.payment_status = payment_status;
+    if (payment_method && VALID_PAYMENT_METHODS.includes(payment_method)) filter.payment_method = payment_method;
+    if (payment_status && VALID_STATUSES.includes(payment_status)) filter.payment_status = payment_status;
     if (search) {
       filter.$or = [
         { receipt_number: { $regex: search, $options: 'i' } }
