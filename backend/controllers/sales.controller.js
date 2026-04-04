@@ -19,7 +19,7 @@ exports.create = async (req, res, next) => {
     const { customer_id, items, discount_type, discount_value = 0, payment_method, amount_paid, payment_reference, notes } = req.body;
 
     if (!items || !items.length) return res.status(400).json({ message: 'At least one item required' });
-    if (!['cash', 'mobile_money', 'card'].includes(payment_method)) return res.status(400).json({ message: 'Valid payment method required' });
+    if (!['cash', 'mobile_money', 'card', 'paystack'].includes(payment_method)) return res.status(400).json({ message: 'Valid payment method required' });
 
     let subtotal = 0, tax_amount_total = 0;
     const lineItems = [];
