@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin','manager','cashier'] },
   { to: '/pos', icon: ShoppingCart, label: 'Point of Sale', roles: ['admin','manager','cashier'] },
+  { to: '/transactions', icon: Receipt, label: 'Transactions', roles: ['admin','manager'] },
   { to: '/products', icon: Package, label: 'Products', roles: ['admin','manager'] },
   { to: '/inventory', icon: Warehouse, label: 'Inventory', roles: ['admin','manager'] },
   { to: '/customers', icon: Users, label: 'Customers', roles: ['admin','manager','cashier'] },

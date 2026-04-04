@@ -5,6 +5,7 @@ import { useCart } from '../../context/CartContext'
 import api from '../../lib/axios'
 import toast from 'react-hot-toast'
 import ProtectedLayout from '../layout/ProtectedLayout'
+import { openPaystackPopup } from '../../lib/paystack'
 
 function ReceiptModal({ sale, onClose }) {
   return (
@@ -43,24 +44,69 @@ function CheckoutModal({ onClose, onComplete }) {
   const { items, subtotal, discountAmount, taxAmount, total, discountType, discountValue, setDiscount, customer } = useCart()
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [amountPaid, setAmountPaid] = useState('')
+  const [paystackEmail, setPaystackEmail] = useState(customer?.email || '')
   const [loading, setLoading] = useState(false)
   const change = Math.max(0, parseFloat(amountPaid || 0) - total)
 
-  const handleCheckout = async () => {
+  const createSale = async (paymentReference = null) => {
+    const res = await api.post('/sales', {
+      customer_id: customer?._id || null,
+      items: items.map(i => ({ product_id: i._id, quantity: i.quantity })),
+      discount_type: discountType || undefined,
+      discount_value: discountValue,
+      payment_method: paymentMethod,
+      amount_paid: paymentMethod === 'paystack' ? total : (parseFloat(amountPaid) || total),
+      payment_reference: paymentReference
+    })
+    return res.data
+  }
+
+  const handleCashCheckout = async () => {
     setLoading(true)
     try {
-      const res = await api.post('/sales', {
-        customer_id: customer?._id || null,
-        items: items.map(i => ({ product_id: i._id, quantity: i.quantity })),
-        discount_type: discountType || undefined,
-        discount_value: discountValue,
-        payment_method: paymentMethod,
-        amount_paid: parseFloat(amountPaid) || total
-      })
-      onComplete(res.data)
+      const sale = await createSale()
+      onComplete(sale)
     } catch (err) {
       toast.error(err.response?.data?.message || 'Checkout failed')
     } finally { setLoading(false) }
+  }
+
+  const handlePaystackCheckout = async () => {
+    if (!paystackEmail) { toast.error('Please enter a customer email for Paystack payment'); return }
+    const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
+    if (!publicKey) { toast.error('Paystack is not configured. Please add NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY to your environment.'); return }
+    setLoading(true)
+    try {
+      const reference = `POS-${crypto.randomUUID().replace(/-/g, '').slice(0, 16).toUpperCase()}`
+      await openPaystackPopup({
+        key: publicKey,
+        email: paystackEmail,
+        amount: total,
+        reference,
+        onSuccess: async (transaction) => {
+          try {
+            // Verify on backend then create sale
+            await api.post('/payments/paystack/verify', { reference: transaction.reference })
+            const sale = await createSale(transaction.reference)
+            onComplete(sale)
+          } catch (err) {
+            toast.error(err.response?.data?.message || 'Payment verified but sale creation failed')
+          } finally { setLoading(false) }
+        },
+        onClose: () => {
+          toast('Payment cancelled')
+          setLoading(false)
+        }
+      })
+    } catch (err) {
+      toast.error(err.message || 'Failed to open Paystack')
+      setLoading(false)
+    }
+  }
+
+  const handleCheckout = () => {
+    if (paymentMethod === 'paystack') handlePaystackCheckout()
+    else handleCashCheckout()
   }
 
   return (
@@ -74,10 +120,19 @@ function CheckoutModal({ onClose, onComplete }) {
           {['cash', 'mobile_money', 'card', 'paystack'].map(m => (
             <button key={m} onClick={() => setPaymentMethod(m)}
               className={`py-2 rounded-lg text-sm font-medium border-2 transition-colors ${paymentMethod === m ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
-              {m === 'mobile_money' ? 'Mobile' : m.charAt(0).toUpperCase() + m.slice(1)}
+              {m === 'mobile_money' ? 'Mobile Money' : m.charAt(0).toUpperCase() + m.slice(1)}
             </button>
           ))}
         </div>
+        {paymentMethod === 'paystack' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Customer Email <span className="text-red-500">*</span></label>
+            <input type="email" value={paystackEmail} onChange={e => setPaystackEmail(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="customer@example.com" />
+            <p className="text-xs text-gray-400 mt-1">Required to process Paystack payment</p>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Discount</label>
           <div className="flex gap-2">
@@ -96,19 +151,21 @@ function CheckoutModal({ onClose, onComplete }) {
           {taxAmount > 0 && <div className="flex justify-between"><span className="text-gray-500">Tax</span><span>${taxAmount.toFixed(2)}</span></div>}
           <div className="flex justify-between font-bold text-base"><span>Total</span><span>${total.toFixed(2)}</span></div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Amount Received</label>
-          <input type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            placeholder={total.toFixed(2)} />
-          {parseFloat(amountPaid) > 0 && <p className="text-sm text-green-600 mt-1">Change: ${change.toFixed(2)}</p>}
-        </div>
+        {paymentMethod !== 'paystack' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount Received</label>
+            <input type="number" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder={total.toFixed(2)} />
+            {parseFloat(amountPaid) > 0 && <p className="text-sm text-green-600 mt-1">Change: ${change.toFixed(2)}</p>}
+          </div>
+        )}
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
           <button onClick={handleCheckout} disabled={loading || items.length === 0}
             className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
             {loading && <Loader2 size={16} className="animate-spin" />}
-            {loading ? 'Processing...' : 'Confirm Payment'}
+            {loading ? 'Processing...' : paymentMethod === 'paystack' ? 'Pay with Paystack' : 'Confirm Payment'}
           </button>
         </div>
       </div>
