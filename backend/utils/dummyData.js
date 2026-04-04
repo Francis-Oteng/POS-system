@@ -6,10 +6,12 @@ const generateDummyTransactions = () => {
   const statuses = ['completed', 'pending', 'refunded'];
 
   for (let i = 1; i <= 50; i++) {
-    const subtotal = Math.floor(Math.random() * 450) + 50;
-    const tax = Math.round(subtotal * 0.1 * 100) / 100;
+    const unitPrice = Math.floor(Math.random() * 300) + 50;
+    const quantity = Math.floor(Math.random() * 5) + 1;
+    const lineTotal = Math.round(unitPrice * quantity * 100) / 100;
+    const tax = Math.round(lineTotal * 0.1 * 100) / 100;
     const discount = Math.floor(Math.random() * 50);
-    const total = subtotal + tax - discount;
+    const total = lineTotal + tax - discount;
     const method = methods[Math.floor(Math.random() * 3)];
     const date = new Date();
     date.setDate(date.getDate() - Math.floor(Math.random() * 90));
@@ -25,11 +27,11 @@ const generateDummyTransactions = () => {
       },
       items: [{
         product: products[Math.floor(Math.random() * products.length)],
-        quantity: Math.floor(Math.random() * 5) + 1,
-        unitPrice: Math.floor(Math.random() * 300) + 50,
-        lineTotal: subtotal,
+        quantity,
+        unitPrice,
+        lineTotal,
       }],
-      subtotal: Math.round(subtotal * 100) / 100,
+      subtotal: lineTotal,
       tax,
       discount,
       total: Math.round(total * 100) / 100,
