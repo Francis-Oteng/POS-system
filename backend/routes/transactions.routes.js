@@ -4,6 +4,7 @@ const { requireRole } = require('../middleware/roles');
 const ctrl = require('../controllers/transactionController');
 
 router.get('/dummy', ctrl.getDummyTransactions);
+router.get('/stats', auth, ctrl.getDashboardStats);
 
 router.use(auth);
 

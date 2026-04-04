@@ -1,4 +1,7 @@
 const Sale = require('../models/Sale');
+const { generateDummyTransactions } = require('../utils/dummyData');
+
+let cachedTransactions = null;
 
 const DUMMY_CASHIER_ID = '000000000000000000000001';
 const DUMMY_PRODUCT_ID = '000000000000000000000002';
@@ -198,4 +201,28 @@ exports.getDummyTransactions = (_req, res) => {
   const total = filtered.length;
   const data = filtered.slice((page - 1) * limit, page * limit);
   res.json({ data, total, page, limit, pages: Math.ceil(total / limit) });
+};
+
+exports.getDashboardStats = async (req, res, next) => {
+  try {
+    if (!cachedTransactions) {
+      cachedTransactions = generateDummyTransactions();
+    }
+
+    const completed = cachedTransactions.filter(t => t.status === 'completed');
+    const totalRevenue = completed.reduce((sum, t) => sum + t.total, 0);
+    const avgTransaction = completed.length > 0 ? totalRevenue / completed.length : 0;
+    const paystackCount = cachedTransactions.filter(t => t.payment.method === 'paystack').length;
+
+    res.json({
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      transactionCount: cachedTransactions.length,
+      completedCount: completed.length,
+      avgTransaction: Math.round(avgTransaction * 100) / 100,
+      paystackPercentage: Math.round((paystackCount / cachedTransactions.length) * 100),
+      recentTransactions: cachedTransactions.slice(0, 10),
+    });
+  } catch (error) {
+    next(error);
+  }
 };
