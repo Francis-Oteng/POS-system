@@ -14,7 +14,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/pos_system'
   });
 
 // Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true }));
 app.use(express.json());
 
 // Routes
@@ -25,6 +25,7 @@ app.use('/api/sales',     require('./routes/sales.routes'));
 app.use('/api/inventory', require('./routes/inventory.routes'));
 app.use('/api/customers', require('./routes/customers.routes'));
 app.use('/api/reports',   require('./routes/reports.routes'));
+app.use('/api/payments',  require('./routes/payments.routes'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 app.use((req, res) => res.status(404).json({ message: 'Route not found' }));
