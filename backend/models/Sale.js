@@ -25,7 +25,9 @@ const saleSchema = new mongoose.Schema({
   change_due:     { type: Number, default: 0 },
   payment_method: { type: String, enum: ['cash', 'mobile_money', 'card', 'paystack'], required: true },
   payment_reference: { type: String, default: null },
-  payment_status: { type: String, enum: ['completed', 'refunded', 'void'], default: 'completed' },
+  paystack_reference: { type: String, default: null },
+  paystack_access_code: { type: String, default: null },
+  payment_status: { type: String, enum: ['pending', 'completed', 'refunded', 'void', 'failed'], default: 'completed' },
   notes:          { type: String, default: '' }
 }, { timestamps: true });
 

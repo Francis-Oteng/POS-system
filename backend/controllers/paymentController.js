@@ -1,69 +1,63 @@
-const { initializeTransaction, verifyTransaction } = require('../utils/paystack');
+const paystack = require('../utils/paystack');
 const Sale = require('../models/Sale');
-const { randomUUID } = require('crypto');
+const mongoose = require('mongoose');
 
-// Validate that a Paystack reference only contains safe characters to prevent NoSQL injection
-function sanitizeReference(ref) {
-  if (typeof ref !== 'string') return null;
-  // Paystack references are alphanumeric with hyphens and underscores
-  return /^[\w\-]{1,100}$/.test(ref) ? ref : null;
-}
-
-/**
- * POST /api/payments/paystack/initialize
- * Body: { email, amount, sale_ref }
- * Initializes a Paystack payment and returns the checkout URL.
- */
-exports.initialize = async (req, res, next) => {
+exports.initializePaystack = async (req, res, next) => {
   try {
-    const { email, amount, sale_ref } = req.body;
-    if (!email || !amount) return res.status(400).json({ message: 'email and amount are required' });
+    const { email, amount, sale_id, metadata } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ message: 'Valid amount required' });
+    if (sale_id && !mongoose.Types.ObjectId.isValid(sale_id)) {
+      return res.status(400).json({ message: 'Invalid sale_id' });
+    }
 
-    const reference = sale_ref || `POS-${randomUUID().replace(/-/g, '').slice(0, 16).toUpperCase()}`;
+    const reference = `PSK-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    const result = await initializeTransaction({
-      email,
-      amount: parseFloat(amount),
+    const response = await paystack.initializePayment({
+      email: email || 'customer@example.com',
+      amount,
       reference,
-      metadata: { initiated_by: req.user?.id, pos: true }
+      metadata: { ...(metadata || {}), sale_id },
     });
 
-    res.json({ authorization_url: result.authorization_url, access_code: result.access_code, reference: result.reference });
-  } catch (err) {
-    next(err);
-  }
+    const formatted = paystack.formatPaymentResponse(response);
+
+    if (sale_id) {
+      await Sale.findByIdAndUpdate(sale_id, {
+        payment_reference: reference,
+        payment_status: 'pending',
+      }).catch((err) => console.error('Failed to update sale with payment reference:', err.message));
+    }
+
+    res.json({ ...formatted, reference });
+  } catch (err) { next(err); }
 };
 
-/**
- * POST /api/payments/paystack/verify
- * Body: { reference }
- * Verifies a Paystack payment and returns the transaction status.
- */
-exports.verify = async (req, res, next) => {
+exports.verifyPaystack = async (req, res, next) => {
   try {
-    const raw = req.body.reference;
-    const reference = sanitizeReference(raw);
-    if (!reference) return res.status(400).json({ message: 'reference is required and must be a valid alphanumeric string' });
+    const { reference } = req.body;
+    if (!reference) return res.status(400).json({ message: 'Reference required' });
+    if (typeof reference !== 'string') return res.status(400).json({ message: 'Reference must be a string' });
 
-    const data = await verifyTransaction(reference);
+    const response = await paystack.verifyPayment(reference);
+    const formatted = paystack.formatPaymentResponse(response);
 
-    // Optionally update a sale that carries this payment reference
-    if (data.status === 'success') {
+    if (formatted.status === 'success') {
       await Sale.findOneAndUpdate(
         { payment_reference: reference },
         { payment_status: 'completed' }
-      );
+      ).catch((err) => console.error('Failed to update sale payment status:', err.message));
     }
 
-    res.json({
-      status: data.status,         // 'success' | 'failed' | 'abandoned'
-      amount: data.amount / 100,   // convert back from smallest unit
-      reference: data.reference,
-      channel: data.channel,
-      paid_at: data.paid_at
-    });
-  } catch (err) {
-    next(err);
-  }
+    res.json(formatted);
+  } catch (err) { next(err); }
 };
 
+exports.getPaymentStatus = async (req, res, next) => {
+  try {
+    const { reference } = req.params;
+    if (typeof reference !== 'string') return res.status(400).json({ message: 'Invalid reference' });
+    const response = await paystack.verifyPayment(reference);
+    const formatted = paystack.formatPaymentResponse(response);
+    res.json(formatted);
+  } catch (err) { next(err); }
+};
