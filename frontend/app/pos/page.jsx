@@ -1,2 +1,2 @@
-import POSPage from '../../components/pages/POSPage'
-export default function POS() { return <POSPage /> }
+import { redirect } from 'next/navigation'
+export default function POS() { redirect('/admin') }
