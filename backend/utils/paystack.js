@@ -1,74 +1,81 @@
-const https = require('https');
+const https  = require('https')
+const crypto = require('crypto')
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
-if (!PAYSTACK_SECRET_KEY) {
-  console.warn('Warning: PAYSTACK_SECRET_KEY environment variable is not set. Paystack payments will fail.');
-}
-const PAYSTACK_BASE_URL = 'api.paystack.co';
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || ''
+const PAYSTACK_BASE_URL   = 'api.paystack.co'
 
-function paystackRequest(method, path, data) {
+/**
+ * Make an authenticated request to the Paystack API.
+ */
+function paystackRequest(method, path, body) {
   return new Promise((resolve, reject) => {
-    const payload = data ? JSON.stringify(data) : null;
+    const data = body ? JSON.stringify(body) : undefined
     const options = {
       hostname: PAYSTACK_BASE_URL,
-      port: 443,
       path,
       method,
       headers: {
         Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
         'Content-Type': 'application/json',
+        ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {}),
       },
-    };
-    if (payload) options.headers['Content-Length'] = Buffer.byteLength(payload);
-
+    }
     const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => { body += chunk; });
+      let raw = ''
+      res.on('data', chunk => { raw += chunk })
       res.on('end', () => {
-        try {
-          resolve(JSON.parse(body));
-        } catch {
-          reject(new Error('Failed to parse Paystack response'));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    if (payload) req.write(payload);
-    req.end();
-  });
+        try { resolve(JSON.parse(raw)) }
+        catch (e) { reject(new Error('Invalid JSON from Paystack')) }
+      })
+    })
+    req.on('error', reject)
+    if (data) req.write(data)
+    req.end()
+  })
 }
 
-exports.initializePayment = async ({ email, amount, reference, metadata }) => {
-  const data = {
-    email: email || 'customer@example.com',
-    amount: Math.round(amount * 100),
-    reference,
-    metadata: metadata || {},
-    callback_url: process.env.PAYSTACK_CALLBACK_URL || 'http://localhost:3000/admin/transactions',
-  };
-  return paystackRequest('POST', '/transaction/initialize', data);
-};
+/**
+ * Generate a unique payment reference.
+ */
+function generateReference(prefix = 'PSK') {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+}
 
-exports.verifyPayment = async (reference) => {
-  return paystackRequest('GET', `/transaction/verify/${encodeURIComponent(reference)}`);
-};
+/**
+ * Initialize a Paystack transaction.
+ * @param {number} amount  Amount in the smallest currency unit (kobo for NGN, cents for USD etc.)
+ * @param {string} email   Customer email
+ * @param {object} metadata  Additional metadata
+ */
+async function initializePayment(amount, email, metadata = {}) {
+  const reference = generateReference()
+  const payload   = { amount, email, reference, metadata }
+  const result    = await paystackRequest('POST', '/transaction/initialize', payload)
+  if (!result.status) throw new Error(result.message || 'Paystack initialization failed')
+  return { ...result.data, reference }
+}
 
-exports.formatPaymentResponse = (paystackResponse) => {
-  if (!paystackResponse || !paystackResponse.data) {
-    return { success: false, message: 'Invalid response from Paystack' };
-  }
-  const { data } = paystackResponse;
-  return {
-    success: paystackResponse.status === true,
-    reference: data.reference,
-    amount: data.amount ? data.amount / 100 : 0,
-    status: data.status,
-    authorization_url: data.authorization_url,
-    access_code: data.access_code,
-    customer: data.customer,
-    paid_at: data.paid_at,
-    channel: data.channel,
-    message: paystackResponse.message,
-  };
-};
+/**
+ * Verify a Paystack transaction.
+ * @param {string} reference  Transaction reference
+ */
+async function verifyPayment(reference) {
+  const result = await paystackRequest('GET', `/transaction/verify/${reference}`)
+  if (!result.status) throw new Error(result.message || 'Paystack verification failed')
+  return result.data
+}
+
+/**
+ * Validate a webhook payload using the Paystack webhook secret.
+ * @param {string} payload   Raw request body string
+ * @param {string} signature x-paystack-signature header value
+ */
+function validateWebhook(payload, signature) {
+  const hash = crypto
+    .createHmac('sha512', process.env.PAYSTACK_WEBHOOK_SECRET || '')
+    .update(payload)
+    .digest('hex')
+  return hash === signature
+}
+
+module.exports = { initializePayment, verifyPayment, validateWebhook, generateReference }

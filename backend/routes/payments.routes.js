@@ -1,11 +1,30 @@
-const router = require('express').Router();
-const auth = require('../middleware/auth');
-const ctrl = require('../controllers/paymentController');
+const express   = require('express')
+const rateLimit = require('express-rate-limit')
+const router    = express.Router()
+const auth      = require('../middleware/auth')
+const ctrl      = require('../controllers/payments.controller')
 
-router.use(auth);
+// Rate-limit payment endpoints: max 20 requests per 15 minutes per IP
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many payment requests, please try again later.' },
+})
 
-router.post('/paystack/initialize', ctrl.initializePaystack);
-router.post('/paystack/verify',     ctrl.verifyPaystack);
-router.get('/paystack/status/:reference', ctrl.getPaymentStatus);
+// Separate limiter for webhooks – allow more requests from Paystack servers
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
-module.exports = router;
+// All routes require authentication except the webhook
+router.post('/initialize',       paymentLimiter, auth, ctrl.initializePaystack)
+router.post('/verify',           paymentLimiter, auth, ctrl.verifyPaystack)
+router.post('/webhook',          webhookLimiter, ctrl.handleWebhook)   // No auth – called by Paystack
+router.get('/status/:reference', paymentLimiter, auth, ctrl.checkStatus)
+
+module.exports = router
